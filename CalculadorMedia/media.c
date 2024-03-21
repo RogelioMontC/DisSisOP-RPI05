@@ -41,7 +41,7 @@ static void __exit media_exit(void) {
     struct number_node *node, *tmp;
     list_for_each_entry_safe(node, tmp, &numbers_list, list) {
         list_del(&node->list);
-        mfree(node);
+        vfree(node);
     }
 }
 
