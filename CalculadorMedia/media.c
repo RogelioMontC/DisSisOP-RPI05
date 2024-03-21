@@ -16,14 +16,16 @@ static int __init media_init(void) {
     // Almacenar los números en la lista
     int i;
     for (i = 0; i < sizeof(numbers) / sizeof(numbers[0]); i++) {
-        struct number_node *new_node = mmalloc(sizeof(struct number_node), GFP_KERNEL);
+        struct number_node *new_node = vmalloc(sizeof(struct number_node), GFP_KERNEL);
         new_node->number = numbers[i];
         list_add_tail(&new_node->list, &numbers_list);
     }
 
     // Calcular la media de los números almacenados
-    int sum = 0;
-    int count = 0;
+    int sum;
+    sum = 0;
+    int count;
+    count = 0;
     struct number_node *node;
     list_for_each_entry(node, &numbers_list, list) {
         sum += node->number;
