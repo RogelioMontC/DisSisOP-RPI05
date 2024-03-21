@@ -16,7 +16,7 @@ static int __init media_init(void) {
     // Almacenar los números en la lista
     int i;
     for (i = 0; i < sizeof(numbers) / sizeof(numbers[0]); i++) {
-        struct number_node *new_node = kmalloc(sizeof(struct number_node), GFP_KERNEL);
+        struct number_node *new_node = mmalloc(sizeof(struct number_node), GFP_KERNEL);
         new_node->number = numbers[i];
         list_add_tail(&new_node->list, &numbers_list);
     }
@@ -41,7 +41,7 @@ static void __exit media_exit(void) {
     struct number_node *node, *tmp;
     list_for_each_entry_safe(node, tmp, &numbers_list, list) {
         list_del(&node->list);
-        kfree(node);
+        mfree(node);
     }
 }
 
