@@ -17,10 +17,13 @@ $ sudo rmmod media_mod_v2
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 
-#define MAX_COOKIE_LENGTH PAGE_SIZE
+#define PROC_ENTRY_NAME "media"
+#define MAX_COOKIE_LENGTH       PAGE_SIZE
+
 static struct proc_dir_entry *proc_entry;
 static int suma_numeros = 0;
 static int cantidad_numeros = 0;
+
 /****************************************************************************/
 /* file operations
  */
@@ -31,14 +34,14 @@ ssize_t media_write(struct file *filp, const char *buf, size_t count, loff_t *of
     char copia_buffer[512];
     int space_avaiable = 512;
     int variable;
-    printk(KERN_INFO "media: write\n");
+    printk(KERN_NOTICE "media: write\n");
     if (count > space_avaiable)
         count = space_avaiable;
     if (*off > 0)
         return 0;
 
-    printk(KERN_INFO "media: write %d\n", count);
-
+    printk(KERN_NOTICE "media: write %zu\n", count);
+    
     if (strncmp(copia_buffer, "CLEAR", 5) == 0)
     {
         cantidad_numeros = 0;
@@ -81,31 +84,34 @@ ssize_t media_read(struct file *filp, char __user *buf, size_t count, loff_t *of
     *off += len;
     return len;
 }
-struct file_operations proc_fops = {
-    read : media_read,
-    write : media_write
+
+static struct proc_ops proc_fops = {
+    .proc_read  = media_read,
+    .proc_write = media_write
 };
 // al cargar el modulo
 int init_media_module(void)
 {
-    int ret = 0;
-    proc_entry = proc_create("media", 0666, NULL, &proc_fops);
+    printk(KERN_NOTICE "Loading module '%s'\n", KBUILD_MODNAME);
+    proc_entry = proc_create(PROC_ENTRY_NAME,
+                             S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH,
+                             NULL, &proc_fops);
     if (proc_entry == NULL)
     {
-        ret = -ENOMEM;
-        printk(KERN_INFO "media: Couldn't create proc entry\n");
+        printk(KERN_NOTICE "media: Couldn't create proc entry\n");
+        return -ENOMEM;
     }
     else
     {
-        printk(KERN_INFO "media: Module loaded.\n");
+        printk(KERN_NOTICE "media: Module loaded.\n");
     }
-    return ret;
+    return 0;
 }
 // al descargar el modulo
 void cleanup_media_module(void)
 {
     remove_proc_entry("media", NULL);
-    printk(KERN_INFO "media: Module unloaded.\n");
+    printk(KERN_NOTICE "media: Module unloaded.\n");
 }
 module_init(init_media_module);
 module_exit(cleanup_media_module);

@@ -8,60 +8,37 @@
 #include <linux/uaccess.h>
 #include <linux/types.h>
 
-// Function to calculate the average of an array of numbers
-int calculate_average(int *numbers, int size) {
-    int sum = 0;
-    for (int i = 0; i < size; i++) {
-        sum += numbers[i];
-    }
-    return sum / size;
+// Funcion para leer en el modulo
+ssize_t media_read(struct file *filp, const char __user *buf, size_t count, loff_t *offp) {
+    
 }
 
-// Function to read the input from the user and calculate the average
-ssize_t read_proc(struct file *filp, char __user *buf, size_t count, loff_t *offp) {
-    int numbers[100];
-    int num_count = 0;
-    char input[10];
-    int i = 0;
-
-    // Read the input from the user
-    if (copy_from_user(input, buf, count)) {
-        return -EFAULT;
-    }
-
-    // Parse the input and store the numbers in an array
-    char *token = kstrtok(input, " ");
-    while (token != NULL) {
-        numbers[i++] = kstrtoint(token);
-        token = strtok(NULL, " ");
-        num_count++;
-    }
-
-    // Calculate the average
-    int average;
-    average = calculate_average(numbers, num_count);
-
-    // Convert the average to a string
-    char result[20];
-    sprintf(result, "Average: %.2d\n", average);
-
-    // Copy the result to the user buffer
-    if (copy_to_user(buf, result, strlen(result))) {
-        return -EFAULT;
-    }
-
-    return strlen(result);
+ssize_t media_write(struct file *filp, const char __user *buf, size_t count, loff_t *offp) {
+    
 }
 
-// File operations structure
-struct proc_ops proc_fops = {
-    .read : read_proc
+// Estructura de operaciones de fichero
+static struct proc_ops proc_fops = {
+    .proc_read  = media_read,
+    .proc_write = media_write
 };
 
 // Module initialization function
 static int __init media_init(void) {
     // Create the proc file
-    proc_create("media", 0666, NULL, &proc_fops);
+    printk(KERN_NOTICE "Loading module '%s'\n", KBUILD_MODNAME);
+    proc_entry = proc_create(PROC_ENTRY_NAME,
+                             S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH,
+                             NULL, &proc_fops);
+    if (proc_entry == NULL)
+    {
+        printk(KERN_NOTICE "media: Couldn't create proc entry\n");
+        return -ENOMEM;
+    }
+    else
+    {
+        printk(KERN_NOTICE "media: Module loaded.\n");
+    }
     return 0;
 }
 
@@ -69,9 +46,12 @@ static int __init media_init(void) {
 static void __exit media_exit(void) {
     // Remove the proc file
     remove_proc_entry("media", NULL);
+    printk(KERN_NOTICE "media: Module unloaded.\n");
 }
 
 module_init(media_init);
 module_exit(media_exit);
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Rogelio y Augusto");
+MODULE_DESCRIPTION("Calculador de media. Grupo J.");
