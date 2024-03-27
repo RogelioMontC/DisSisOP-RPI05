@@ -9,12 +9,12 @@
 #include <linux/types.h>
 
 // Function to calculate the average of an array of numbers
-double calculate_average(int *numbers, int size) {
+int calculate_average(int *numbers, int size) {
     int sum = 0;
     for (int i = 0; i < size; i++) {
         sum += numbers[i];
     }
-    return (double)sum / size;
+    return sum / size;
 }
 
 // Function to read the input from the user and calculate the average
