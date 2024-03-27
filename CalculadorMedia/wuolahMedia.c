@@ -112,5 +112,4 @@ module_exit(cleanup_media_module);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Media Cookie Kernel Module (DSO)");
-MODULE_AUTHOR("basado en el trabajo de M. Tim Jones, adaptado para kernel >
-3.10");
+MODULE_AUTHOR("basado en el trabajo de M. Tim Jones, adaptado para kernel > 3.10");
