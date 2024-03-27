@@ -53,9 +53,9 @@ ssize_t read_proc(struct file *filp, char __user *buf, size_t count, loff_t *off
 }
 
 // File operations structure
-static const struct proc_ops proc_fops = {
-    .owner = THIS_MODULE,
-    .read = read_proc,
+struct file_operations proc_fops = {
+    read : media_read,
+    write: media_write
 };
 
 // Module initialization function
