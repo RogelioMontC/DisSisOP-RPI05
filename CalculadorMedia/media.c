@@ -2,54 +2,78 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/proc_fs.h>
+#include <linux/string.h>
+#include <linux/vmalloc.h>
+#include <linux/uaccess.h>
+#include <linux/types.h>
+#include <unistd.h>
+#include <cerrno>
 
-struct number_node {
-    int number;
-    struct list_head list;
+// Function to calculate the average of an array of numbers
+double calculate_average(int *numbers, int size) {
+    int sum = 0;
+    for (int i = 0; i < size; i++) {
+        sum += numbers[i];
+    }
+    return (double)sum / size;
+}
+
+// Function to read the input from the user and calculate the average
+ssize_t read_proc(struct file *filp, char __user *buf, size_t count, loff_t *offp) {
+    int numbers[100];
+    int num_count = 0;
+    char input[10];
+    int i = 0;
+
+    // Read the input from the user
+    if (copy_from_user(input, buf, count)) {
+        return -EFAULT;
+    }
+
+    // Parse the input and store the numbers in an array
+    char *token = strtok(input, " ");
+    while (token != NULL) {
+        numbers[i++] = atoi(token);
+        token = strtok(NULL, " ");
+        num_count++;
+    }
+
+    // Calculate the average
+    double average = calculate_average(numbers, num_count);
+
+    // Convert the average to a string
+    char result[20];
+    sprintf(result, "Average: %.2f\n", average);
+
+    // Copy the result to the user buffer
+    if (copy_to_user(buf, result, strlen(result))) {
+        return -EFAULT;
+    }
+
+    return strlen(result);
+}
+
+// File operations structure
+static const struct file_operations proc_fops = {
+    .owner = THIS_MODULE,
+    .read = read_proc,
 };
 
-static LIST_HEAD(numbers_list);
-
+// Module initialization function
 static int __init media_init(void) {
-    int numbers[] = {1, 2, 3, 4, 5}; // Ejemplo de números a almacenar
-
-    // Almacenar los números en la lista
-    int i;
-    for (i = 0; i < sizeof(numbers) / sizeof(numbers[0]); i++) {
-        struct number_node *new_node = vmalloc(sizeof(struct number_node), GFP_KERNEL);
-        new_node->number = numbers[i];
-        list_add_tail(&new_node->list, &numbers_list);
-    }
-
-    // Calcular la media de los números almacenados
-    int sum;
-    sum = 0;
-    int count;
-    count = 0;
-    struct number_node *node;
-    list_for_each_entry(node, &numbers_list, list) {
-        sum += node->number;
-        count++;
-    }
-    int average = sum / count;
-
-    printk(KERN_INFO "Media de los números: %d\n", average);
-
+    // Create the proc file
+    proc_create("media", 0666, NULL, &proc_fops);
     return 0;
 }
 
+// Module exit function
 static void __exit media_exit(void) {
-    // Liberar la memoria de los nodos de la lista
-    struct number_node *node, *tmp;
-    list_for_each_entry_safe(node, tmp, &numbers_list, list) {
-        list_del(&node->list);
-        vfree(node);
-    }
+    // Remove the proc file
+    remove_proc_entry("media", NULL);
 }
 
 module_init(media_init);
 module_exit(media_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Rogelio y Augusto");
-MODULE_DESCRIPTION("Módulo para calcular la media de números");
