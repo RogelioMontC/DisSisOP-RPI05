@@ -38,7 +38,7 @@ ssize_t read_proc(struct file *filp, char __user *buf, size_t count, loff_t *off
     }
 
     // Calculate the average
-    double average = calculate_average(numbers, num_count);
+    int average = calculate_average(numbers, num_count);
 
     // Convert the average to a string
     char result[20];
