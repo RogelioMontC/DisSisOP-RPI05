@@ -30,7 +30,7 @@ ssize_t read_proc(struct file *filp, char __user *buf, size_t count, loff_t *off
     }
 
     // Parse the input and store the numbers in an array
-    char *token = strtok(input, " ");
+    char *token = kstrtok(input, " ");
     while (token != NULL) {
         numbers[i++] = kstrtoint(token);
         token = strtok(NULL, " ");
