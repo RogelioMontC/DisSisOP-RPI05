@@ -53,7 +53,7 @@ ssize_t read_proc(struct file *filp, char __user *buf, size_t count, loff_t *off
 }
 
 // File operations structure
-struct file_operations proc_fops = {
+struct proc_ops proc_fops = {
     read : read_proc
 };
 
