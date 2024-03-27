@@ -109,3 +109,8 @@ void cleanup_media_module(void)
 }
 module_init(init_media_module);
 module_exit(cleanup_media_module);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Media Cookie Kernel Module (DSO)");
+MODULE_AUTHOR("basado en el trabajo de M. Tim Jones, adaptado para kernel >
+3.10");
