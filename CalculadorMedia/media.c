@@ -42,7 +42,7 @@ ssize_t read_proc(struct file *filp, char __user *buf, size_t count, loff_t *off
 
     // Convert the average to a string
     char result[20];
-    sprintf(result, "Average: %.2f\n", average);
+    sprintf(result, "Average: %.2d\n", average);
 
     // Copy the result to the user buffer
     if (copy_to_user(buf, result, strlen(result))) {
@@ -54,8 +54,7 @@ ssize_t read_proc(struct file *filp, char __user *buf, size_t count, loff_t *off
 
 // File operations structure
 struct file_operations proc_fops = {
-    read : media_read,
-    write: media_write
+    read : read_proc
 };
 
 // Module initialization function
