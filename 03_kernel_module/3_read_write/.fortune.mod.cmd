@@ -1,0 +1,1 @@
+cmd_/home/rogelio/Documentos/DisOp/DisSisOP-RPI05/03_kernel_module/3_read_write/fortune.mod := printf '%s\n'   fortune.o | awk '!x[$$0]++ { print("/home/rogelio/Documentos/DisOp/DisSisOP-RPI05/03_kernel_module/3_read_write/"$$0) }' > /home/rogelio/Documentos/DisOp/DisSisOP-RPI05/03_kernel_module/3_read_write/fortune.mod

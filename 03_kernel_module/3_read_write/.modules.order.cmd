@@ -1,0 +1,1 @@
+cmd_/home/rogelio/Documentos/DisOp/DisSisOP-RPI05/03_kernel_module/3_read_write/modules.order := {   echo /home/rogelio/Documentos/DisOp/DisSisOP-RPI05/03_kernel_module/3_read_write/fortune.ko; :; } > /home/rogelio/Documentos/DisOp/DisSisOP-RPI05/03_kernel_module/3_read_write/modules.order

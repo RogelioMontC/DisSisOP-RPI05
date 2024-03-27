@@ -29,7 +29,7 @@ static int cantidad_numeros = 0;
  */
 /****************************************************************************/
 // escritura del fichero
-ssize_t media_write(struct file *filp, const char *buf, size_t count, loff_t *off)
+ssize_t media_read(struct file *filp, const char *buf, size_t count, loff_t *off)
 {
     char copia_buffer[512];
     int space_avaiable = 512;
@@ -60,7 +60,7 @@ ssize_t media_write(struct file *filp, const char *buf, size_t count, loff_t *of
     return count;
 }
 // lectura del fichero
-ssize_t media_read(struct file *filp, char __user *buf, size_t count, loff_t *off)
+ssize_t media_write(struct file *filp, char __user *buf, size_t count, loff_t *off)
 {
     char respuesta[1024];
     int entera, fraccion, len;

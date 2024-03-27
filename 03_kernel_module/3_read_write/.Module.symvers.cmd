@@ -1,0 +1,1 @@
+cmd_/home/rogelio/Documentos/DisOp/DisSisOP-RPI05/03_kernel_module/3_read_write/Module.symvers :=  sed 's/ko$$/o/'  /home/rogelio/Documentos/DisOp/DisSisOP-RPI05/03_kernel_module/3_read_write/modules.order | scripts/mod/modpost -m     -o /home/rogelio/Documentos/DisOp/DisSisOP-RPI05/03_kernel_module/3_read_write/Module.symvers -e -i Module.symvers -T - 

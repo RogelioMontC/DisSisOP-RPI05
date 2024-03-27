@@ -15,7 +15,7 @@ static int next_fortune;  // Index to read next fortune
 
 
 // file operations
-ssize_t fortune_write(struct file *filp,const char *buf, size_t count, loff_t *off)
+ssize_t fortune_write(struct file *filp, const char *buf, size_t count, loff_t *off)
 {
     int space_available = (MAX_COOKIE_LENGTH-cookie_index)+1;
     if (count > space_available) {
