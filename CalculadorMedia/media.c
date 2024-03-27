@@ -54,7 +54,7 @@ ssize_t read_proc(struct file *filp, char __user *buf, size_t count, loff_t *off
 
 // File operations structure
 struct proc_ops proc_fops = {
-    read : read_proc
+    .read : read_proc
 };
 
 // Module initialization function
