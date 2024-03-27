@@ -7,7 +7,6 @@
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 #include <linux/types.h>
-#include <unistd.h>
 #include <cerrno>
 
 // Function to calculate the average of an array of numbers
