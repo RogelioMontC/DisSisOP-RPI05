@@ -65,8 +65,8 @@ int init_fortune_module( void )
     printk(KERN_NOTICE "Loading module '%s'\n", KBUILD_MODNAME);
     cookie_pot = (char *)vmalloc(MAX_COOKIE_LENGTH); // alloc dynamic memory in the kernel
     if (!cookie_pot) return -ENOMEM;
-
     memset(cookie_pot, 0, MAX_COOKIE_LENGTH);
+    
     proc_entry = proc_create(PROC_ENTRY_NAME,
                              S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH,
                              NULL, &my_fops);
