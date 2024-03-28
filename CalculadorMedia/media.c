@@ -20,8 +20,8 @@ static int next_id;  // Index to read next number
 int suma(int *ptr_num, int count) {
     int sum = 0;
     for (int i = 0; i < count; i++) {
-        printk(KERN_INFO "media: %d sumado. Total: %d\n", ptr_num[i], sum);
         sum += ptr_num[i];
+        printk(KERN_INFO "media: %d sumado. Total: %d\n", ptr_num[i], sum);
     }
     return sum;
 }
@@ -33,11 +33,11 @@ ssize_t media_read(struct file *filp, char __user *buf, size_t count, loff_t *of
     int decimales;
     int len;
     if(*off > 0) return 0; // Evitar multiples lecturas
-    if(next_id == 0) return len = scnprintf(buf, count, "No hay numeros en el buffer.\n");
-    int sum = suma(ptr_num, next_id);
+    if(next_id == 0) return len = sprintf(buf, "No hay numeros en el buffer.\n");
+    int sum = suma(ptr_num, next_id-1);
     entero = sum / (next_id-1);
     decimales = (sum % (next_id-1)) * 100 / (next_id-1);
-    len = scnprintf(response, 512, "La media de %d numeros es: %d.%d\n",(next_id-1), entero, decimales);
+    len = sprintf(response, "La media de %d numeros es: %d.%d\n",(next_id-1), entero, decimales);
     if (copy_to_user(buf, response, len)) {
         return -EFAULT;
     }
