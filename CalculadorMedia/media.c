@@ -17,16 +17,41 @@ static int *ptr_num;  // Space for numbers
 static int start_id;  // Index to write next number
 static int next_id;  // Index to read next number
 
+int suma(int *ptr_num, int count) {
+    int sum = 0;
+    for (int i = 0; i < count; i++) {
+        printk(KERN_INFO "media: %d sumado. Total: %d\n", ptr_num[i], sum);
+        sum += ptr_num[i];
+    }
+    return sum;
+}
+
 // Funcion para leer en el modulo
 ssize_t media_read(struct file *filp, char __user *buf, size_t count, loff_t *off) {
-    return 0;
+    char response[512];
+    int entero;
+    int decimales;
+    int len;
+    if(*off > 0) return 0; // Evitar multiples lecturas
+    if(next_id == 0) return len = scnprintf(buf, count, "No hay numeros en el buffer.\n");
+    int sum = suma(ptr_num, next_id);
+    entero = sum / (next_id-1);
+    decimales = (sum % (next_id-1)) * 100 / (next_id-1);
+    len = scnprintf(response, 512, "La media de %d numeros es: %d.%d\n",(next_id-1), entero, decimales);
+    if (copy_to_user(buf, response, len)) {
+        return -EFAULT;
+    }
+    *off += len;
+    return len;
 }
 
 ssize_t media_write(struct file *filp, const char *buf, size_t count, loff_t *off) {
     int space_available = (MAX_COOKIE_LENGTH-start_id)+1;
     char copia_buf[512];
+    int espacios = 0;
+
     if (count > space_available) {
-        printk(KERN_INFO "media: cookie pot is full!\n");
+        printk(KERN_INFO "media: Buffer lleno\n");
         return -ENOSPC;
     }
     if (copy_from_user(&copia_buf, buf, count)) {
@@ -41,36 +66,30 @@ ssize_t media_write(struct file *filp, const char *buf, size_t count, loff_t *of
         printk(KERN_INFO "media: Se ha limpiado el buffer.\n");
         return count;
     }
+    int heLeido = 0;
     for (int i = 0; i < count-1; i++) {
-        if(copia_buf[i] != ' '){
-
-            if(sscanf(&copia_buf[i], "%d", &ptr_num[next_id + i]) != 1) {
+        if(copia_buf[i] != ' ' && heLeido == 0){
+            if(sscanf(&copia_buf[i], "%d", &ptr_num[next_id + i - espacios]) != 1) {
                 printk(KERN_INFO "media: Error al leer el numero.\n");
                 return -EINVAL;
             }else{
-                printk(KERN_INFO "media: %d cargado.\n", ptr_num[next_id + i]);
+                printk(KERN_INFO "media: %d cargado.\n", ptr_num[next_id + i - espacios]);
+                heLeido++;
             }
-
-            // El bucle evitar leer los numeros mayores que 9 digito a digito.
-            int j;
-            int n = ptr_num[next_id + i];
-            for(j = 0; n/10!=0; j++){
-                n = n/10;
+            
+        }else{
+            if(copia_buf[i] == ' '){
+                heLeido--;
             }
-            if(j > count-1){
-                i = count-1;
-            }else{
-                i += j;
-            }
+            espacios++;
         }
     }
-    next_id += count;
+    next_id += count-espacios;
     *off += count;			    // update file offset
     ptr_num[next_id - 1] = 0;	// end of sentence
     return count;
 }
-// 5 6 7 8 -- "5 6 7 8\n" --- [5, 6, 6, 7, 7, 8, 8, 0]
-
+// "2 3" --> [2,3,0] "33" --> [33,0]
 // Estructura de operaciones de fichero
 static struct proc_ops proc_fops = {
     .proc_read  = media_read,
