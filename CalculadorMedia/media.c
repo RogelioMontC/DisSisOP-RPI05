@@ -36,10 +36,14 @@ ssize_t media_read(struct file *filp, char __user *buf, size_t count, loff_t *of
     if(next_id <= 0){
         len = sprintf(response, "No hay numeros en el buffer.\n");
     }else{
-        int sum = suma(ptr_num, next_id);
-        entero = sum / (next_id);
-        decimales = (sum % (next_id)) * 100 / (next_id);
-        len = sprintf(response, "La media de %d numeros es: %d.%d\n",(next_id), entero, decimales);
+        int contador = 1;
+        if(next_id-1 != 0){
+            contador = next_id-1;
+        }
+        int sum = suma(ptr_num, contador);
+        entero = sum / contador;
+        decimales = (sum % contador) * 100 / contador;
+        len = sprintf(response, "La media de %d numeros es: %d.%d\n",contador, entero, decimales);
     }
 
     if (copy_to_user(buf, response, len)) {
@@ -93,7 +97,7 @@ ssize_t media_write(struct file *filp, const char *buf, size_t count, loff_t *of
     ptr_num[next_id - 1] = 0;	// end of sentence
     return count;
 }
-// "2 3" --> [2,3,0] "33" --> [33,0]
+
 // Estructura de operaciones de fichero
 static struct proc_ops proc_fops = {
     .proc_read  = media_read,
