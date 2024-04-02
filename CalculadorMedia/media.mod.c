@@ -41,8 +41,8 @@ __used __section("__versions") = {
 	{ 0xbcab6ee6, "sscanf" },
 	{ 0x9641f0c2, "proc_create" },
 	{ 0x8c29ce04, "remove_proc_entry" },
-	{ 0x3c3ff9fd, "sprintf" },
 	{ 0x6b10bee1, "_copy_to_user" },
+	{ 0x3c3ff9fd, "sprintf" },
 	{ 0x6093f1a5, "module_layout" },
 };
 

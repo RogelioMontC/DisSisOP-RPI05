@@ -33,11 +33,15 @@ ssize_t media_read(struct file *filp, char __user *buf, size_t count, loff_t *of
     int decimales;
     int len;
     if(*off > 0) return 0; // Evitar multiples lecturas
-    if(next_id == 0) return len = sprintf(buf, "No hay numeros en el buffer.\n");
-    int sum = suma(ptr_num, next_id-1);
-    entero = sum / (next_id-1);
-    decimales = (sum % (next_id-1)) * 100 / (next_id-1);
-    len = sprintf(response, "La media de %d numeros es: %d.%d\n",(next_id-1), entero, decimales);
+    if(next_id <= 0){
+        len = sprintf(response, "No hay numeros en el buffer.\n");
+    }else{
+        int sum = suma(ptr_num, next_id);
+        entero = sum / (next_id);
+        decimales = (sum % (next_id)) * 100 / (next_id);
+        len = sprintf(response, "La media de %d numeros es: %d.%d\n",(next_id), entero, decimales);
+    }
+
     if (copy_to_user(buf, response, len)) {
         return -EFAULT;
     }
