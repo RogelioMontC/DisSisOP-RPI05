@@ -24,7 +24,7 @@ ssize_t media_read(struct file *filp, char __user *buf, size_t count, loff_t *of
     int len;
 
     if(*off > 0) return 0; // Evitar multiples lecturas
-    if(contador == 0) return len = sprintf(response, "No hay numeros en el buffer.\n");
+    if(contador <= 0) return len = sprintf(response, "No hay numeros en el buffer.\n");
     entero = suma / contador;
     decimales = (suma % contador) * 100 / contador;
     len = sprintf(response, "La media de %d numeros es: %d.%d\n",contador, entero, decimales);
@@ -49,7 +49,7 @@ ssize_t media_write(struct file *filp, const char *buf, size_t count, loff_t *of
         printk(KERN_INFO "media: Error al copiar desde el usuario.\n");
         return -EFAULT;
     }
-    if (strncmp(copia_buf, "CLEAR\n", 6) == 0 ){
+    if (strncmp(copia_buf, "CLEAR", 5) == 0 ){
         suma = 0;
         contador = 0;
         printk(KERN_INFO "media: Se ha limpiado el buffer.\n");
