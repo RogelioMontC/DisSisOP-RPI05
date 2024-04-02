@@ -13,18 +13,8 @@
 
 static struct proc_dir_entry *proc_entry;
 
-static int *ptr_num;  // Space for numbers
-static int start_id;  // Index to write next number
-static int next_id;  // Index to read next number
-
-int suma(int *ptr_num, int count) {
-    int sum = 0;
-    for (int i = 0; i < count; i++) {
-        sum += ptr_num[i];
-        printk(KERN_INFO "media: %d sumado. Total: %d\n", ptr_num[i], sum);
-    }
-    return sum;
-}
+static int suma;
+static int contador;
 
 // Funcion para leer en el modulo
 ssize_t media_read(struct file *filp, char __user *buf, size_t count, loff_t *off) {
@@ -32,12 +22,12 @@ ssize_t media_read(struct file *filp, char __user *buf, size_t count, loff_t *of
     int entero;
     int decimales;
     int len;
+
     if(*off > 0) return 0; // Evitar multiples lecturas
-    if(next_id == 0) return len = sprintf(buf, "No hay numeros en el buffer.\n");
-    int sum = suma(ptr_num, next_id-1);
-    entero = sum / (next_id-1);
-    decimales = (sum % (next_id-1)) * 100 / (next_id-1);
-    len = sprintf(response, "La media de %d numeros es: %d.%d\n",(next_id-1), entero, decimales);
+    if(contador == 0) return len = sprintf(response, "No hay numeros en el buffer.\n");
+    entero = suma / contador;
+    decimales = (suma % contador) * 100 / contador;
+    len = sprintf(response, "La media de %d numeros es: %d.%d\n",contador, entero, decimales);
     if (copy_to_user(buf, response, len)) {
         return -EFAULT;
     }
@@ -46,9 +36,10 @@ ssize_t media_read(struct file *filp, char __user *buf, size_t count, loff_t *of
 }
 
 ssize_t media_write(struct file *filp, const char *buf, size_t count, loff_t *off) {
-    int space_available = (MAX_COOKIE_LENGTH-start_id)+1;
+    int space_available = (MAX_COOKIE_LENGTH);
     char copia_buf[512];
     int espacios = 0;
+    int numero;
 
     if (count > space_available) {
         printk(KERN_INFO "media: Buffer lleno\n");
@@ -59,21 +50,21 @@ ssize_t media_write(struct file *filp, const char *buf, size_t count, loff_t *of
         return -EFAULT;
     }
     if (strncmp(copia_buf, "CLEAR\n", 6) == 0 ){
-        start_id = 0;
-        next_id = 0;
-        vfree(ptr_num);
-        ptr_num = (int *)vmalloc(MAX_COOKIE_LENGTH);
+        suma = 0;
+        contador = 0;
         printk(KERN_INFO "media: Se ha limpiado el buffer.\n");
         return count;
     }
     int heLeido = 0;
     for (int i = 0; i < count-1; i++) {
         if(copia_buf[i] != ' ' && heLeido == 0){
-            if(sscanf(&copia_buf[i], "%d", &ptr_num[next_id + i - espacios]) != 1) {
+            if(sscanf(&copia_buf[i], "%d", &numero) != 1) {
                 printk(KERN_INFO "media: Error al leer el numero.\n");
                 return -EINVAL;
             }else{
-                printk(KERN_INFO "media: %d cargado.\n", ptr_num[next_id + i - espacios]);
+                suma += numero;
+                contador++;
+                printk(KERN_INFO "media: %d cargado. Total: %d (%d numeros)\n", numero, suma, contador);
                 heLeido++;
             }
             
@@ -84,9 +75,7 @@ ssize_t media_write(struct file *filp, const char *buf, size_t count, loff_t *of
             espacios++;
         }
     }
-    next_id += count-espacios;
     *off += count;			    // update file offset
-    ptr_num[next_id - 1] = 0;	// end of sentence
     return count;
 }
 // "2 3" --> [2,3,0] "33" --> [33,0]
@@ -100,21 +89,16 @@ static struct proc_ops proc_fops = {
 static int __init media_init(void) {
     // Create the proc file
     printk(KERN_NOTICE "Cargando el modulo: '%s'\n", KBUILD_MODNAME);
-    ptr_num = (int *)vmalloc(MAX_COOKIE_LENGTH);
-    if (!ptr_num) return -ENOMEM;
-    memset(ptr_num, 0, MAX_COOKIE_LENGTH);
-
+    suma = 0;
+    contador = 0;
     proc_entry = proc_create(PROC_ENTRY_NAME,
                              S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH,
                              NULL, &proc_fops);
     if (proc_entry == NULL)
     {
-        vfree(ptr_num);
         printk(KERN_NOTICE "media: No se pudo cargar el modulo\n");
         return -ENOMEM;
     }
-    start_id = 0;
-    next_id = 0;
 
     printk(KERN_NOTICE "media: Modulo cargado.\n");
     return 0;
@@ -124,7 +108,6 @@ static int __init media_init(void) {
 static void __exit media_exit(void) {
     // Remove the proc file
     remove_proc_entry("media", NULL);
-    vfree(ptr_num);
     printk(KERN_NOTICE "media: Modulo eliminado.\n");
 }
 
