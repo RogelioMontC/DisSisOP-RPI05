@@ -9,8 +9,12 @@ Si el bit 7 y 6 están a cero, los bits de 5 a 0 serán los valores que deben to
 // 00 -> 010101 100100 -> 010101 SET
 Si el bit 6 está a 1, sólo se tomarán en cuenta los bits a 1 (del 5 a 0) para poner los LEDs correspondientes a 1, el resto quedarán con el valor anterior.
 // 01 -> nuevo | anterior [010101 | (100100)] OR
-Si en bit 7 está a 1, sólo se tomarán en cuenta los bits a 1 (del 5 a 0) para poner los LEDs correspondientes a 0, el resto quedarán con el valor anterior.
+Si en bit 7 está a 1, sólo se tomarán en cuenta los bits a 1 (del 5 a 0) para poner los LEDs correspondientes a 0, 
+el resto quedarán con el valor anterior.
 // 10 -> 010101 100100 == 100000 NEW
+// 010101
+// 100100
+// 100000
 Si el bit 6 y 7 están ambos a 1, sólo se tomarán en cuenta los bits a 1 (del 5 a 0) para cambiar el valor de los LEDs correspondientes,
 el resto quedarán con el valor anterior.
 // 11 -> 010101 100100 -> 110001 ->XOR
@@ -63,17 +67,24 @@ int led;
 if (*ppos > 0) return count;
 if (copy_from_user(&ch, buf, 8)) return -EFAULT;
 if (minor > NUM_LEDS) return -ENOSYS;
-if  (stlen(ch) != 8) return -ENOSYS;
+if  (strlen(ch) != 8) return -ENOSYS;
 
 if (minor == 0) {
 
     for (led = 0; led < NUM_LEDS; led++) {
-
+        int bit = gpio_get_value(gpio_led[led]); // Obtenemos los bit actuales uno a uno
         if(ch[0] == '0' && ch[1] == '1'){
-            int bit = gpio_get_value(gpio_led[led]);
-            gpio_set_value(gpio_led[led], (int)ch[i+2] | bit); //SET LED [0] el bit [0] del resultado)
+            gpio_set_value(gpio_led[led], (int)ch[led+2] | bit); // Modificamos el bit usando OR
+        }else if (ch[0] == '1' && ch[1] == '0'){
+            if(bit == 1){
+                gpio_set_value(gpio_led[led], (int) 0); // Modificamos el bit usando 01 --> 0 si no, se deja igual
+            }
+        }else if (ch[0] == '1' && ch[1] == '1'){
+            gpio_set_value(gpio_led[led], (int)ch[led+2] ^ bit); // Modificamos el bit usando XOR           
+        }else
+        {
+            gpio_set_value(gpio_led[led], (int)ch[led+2] & 1); // SET bit normal
         }
-
         
     }
         printk(KERN_INFO "%s: set all leds to %d\n", KBUILD_MODNAME, (int)ch & 1);
@@ -144,12 +155,12 @@ static const struct file_operations one_led_fops = {
 
 
 // This functions registers devices and requests GPIOs
-struct class *berryclip_class;
-struct cdev berryclip_cdev[NUM_MINORS];
+struct class *berryclip_led_class;
+struct cdev berryclip_led_cdev[NUM_MINORS];
 dev_t dev_num;
 dev_t device[NUM_MINORS];
 
-static char *berryclip_devnode(struct device *dev, umode_t *mode)
+static char *berryclip_led_devnode(struct device *dev, umode_t *mode)
 {
 if (!mode) return NULL;
 if (dev->devt == MKDEV(MAJOR(dev_num), 0)) *mode = 0222;
@@ -162,25 +173,25 @@ static int r_devices_config(void)
 int i;
 
 // Request the kernel for N_MINOR devices
-alloc_chrdev_region(&dev_num, 0, NUM_MINORS, "berryclip");
+alloc_chrdev_region(&dev_num, 0, NUM_MINORS, "berryclip_led");
 
 // Create a class : appears at /sys/class
-berryclip_class = class_create(THIS_MODULE, "berryclip_class");
-if (IS_ERR(berryclip_class)) return PTR_ERR(berryclip_class);
-berryclip_class->devnode = berryclip_devnode;
+berryclip_led_class = class_create(THIS_MODULE, "berryclip_led_class");
+if (IS_ERR(berryclip_led_class)) return PTR_ERR(berryclip_led_class);
+berryclip_led_class->devnode = berryclip_led_devnode;
 
 // Create /dev/leds for all leds together
-cdev_init(&berryclip_cdev[0], &all_leds_fops);
+cdev_init(&berryclip_led_cdev[0], &all_leds_fops);
 device[0] = MKDEV(MAJOR(dev_num), MINOR(dev_num));
-device_create(berryclip_class, NULL, device[0], NULL, "leds");
-cdev_add(&berryclip_cdev[0], device[0], 1);
+device_create(berryclip_led_class, NULL, device[0], NULL, "leds");
+cdev_add(&berryclip_led_cdev[0], device[0], 1);
 
 // Initialize and create /dev/led{i} for each of the device(cdev)
 for (i = 1; i < NUM_MINORS; i++) {
 
 // Associate the cdev with a set of file_operations
 // it could be a different set of functions if needed
-cdev_init(&berryclip_cdev[i], &one_led_fops);
+cdev_init(&berryclip_led_cdev[i], &one_led_fops);
 
 // Build up the current device number. To be used further
 device[i] = MKDEV(MAJOR(dev_num), MINOR(dev_num) + i);
@@ -190,10 +201,10 @@ device[i] = MKDEV(MAJOR(dev_num), MINOR(dev_num) + i);
 // devices. Once the function returns, device nodes will be
 // created as /dev/my_dev0, /dev/my_dev1,...
 // You can also view the devices under /sys/class/my_driver_class/...
-device_create(berryclip_class, NULL, device[i], NULL, "led%d", i);
+device_create(berryclip_led_class, NULL, device[i], NULL, "led%d", i);
 
 // Now make the device live for the users to access
-cdev_add(&berryclip_cdev[i], device[i], 1);
+cdev_add(&berryclip_led_cdev[i], device[i], 1);
 }
 
 return 0;
@@ -235,10 +246,10 @@ for(i = 0; i < NUM_LEDS; i++) {
 gpio_free(gpio_led[i]);
 }
 for(i = 0; i < NUM_MINORS; i++) {
-cdev_del(&berryclip_cdev[i]); // release devs[i] fields
-device_destroy(berryclip_class, device[i]);
+cdev_del(&berryclip_led_cdev[i]); // release devs[i] fields
+device_destroy(berryclip_led_class, device[i]);
 }
-class_destroy(berryclip_class);
+class_destroy(berryclip_led_class);
 unregister_chrdev_region(MKDEV(dev_num, 0), NUM_MINORS);
 
 printk(KERN_NOTICE "%s: DONE\n", KBUILD_MODNAME);
