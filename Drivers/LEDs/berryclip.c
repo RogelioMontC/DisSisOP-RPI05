@@ -31,14 +31,14 @@ static char *desc_led[] = { "RED1", "RED2",
                             "YELLOW1", "YELLOW2",
                             "GREEN1", "GREEN2" };
 
-/
+
 static char leds2byte(void){
     int val;
     char ch;
     int i;
     ch=0;
     for(i=0; i<6; i++){
-        val = gpio_get_value(LED_GPIOS[i]);
+        val = gpio_get_value(gpio_led[i]);
         ch = ch | (val << i);
     }
     return ch;
@@ -50,20 +50,20 @@ static void byte2leds(char ch){
     int bit = (int)leds2byte();
 
     if(val>>7==0 && val>>6==0) {
-        for(i=0; i<6; i++) gpio_set_value(LED_GPIOS[i], (val >> i) & 1);
+        for(i=0; i<6; i++) gpio_set_value(gpio_led[i], (val >> i) & 1);
         printk(KERN_INFO "%s: set all leds to %d\n", KBUILD_MODNAME, val);
     }else if(val>>6==1){
         bit = val | bit;
-        for (i=0; i<6; i++) gpio_set_value(LED_GPIOS[i], (val >> i) & 1);
+        for (i=0; i<6; i++) gpio_set_value(gpio_led[i], (val >> i) & 1);
         printk(KERN_INFO "%s: set all leds to %d\n", KBUILD_MODNAME, bit);
     }else if(val>>7==1){
         int aux= ~val;
         bit=aux & bit;
-        for(i=0; i<6; i++) gpio_set_value(LED_GPIOS[i], (val >> i) & 1);
+        for(i=0; i<6; i++) gpio_set_value(gpio_led[i], (val >> i) & 1);
         printk(KERN_INFO "%s: set all leds to %d\n", KBUILD_MODNAME, bit);
     }else {
-        bit ^⁼ val;
-        for(i=0; i<6; i++) gpio_set_value(LED_GPIOS[i], (val >> i) & 1);
+        bit ^= val;
+        for(i=0; i<6; i++) gpio_set_value(gpio_led[i], (val >> i) & 1);
         printk(KERN_INFO "%s: set all leds to %d\n", KBUILD_MODNAME, bit);
     }
 }
@@ -77,7 +77,6 @@ static ssize_t all_leds_write(struct file *file, const char __user *buf,
 {
     char ch;
     int minor = iminor(file->f_path.dentry->d_inode);
-    int led;
 
     if (*ppos > 0) return count;
     if (copy_from_user(&ch, buf, 1)) return -EFAULT;
