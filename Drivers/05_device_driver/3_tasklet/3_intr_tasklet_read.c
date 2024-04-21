@@ -1,5 +1,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/proc_fs.h>
 #include <linux/init.h>
 #include <linux/miscdevice.h> // misc dev
 #include <linux/fs.h>         // file operations
@@ -20,6 +21,11 @@
 // Interrupt variable
 static short int irq_BUTTON1 = 0;
 
+//  proc entry
+#define ENTRY_NAME "counter"
+#define PERMS 0644
+#define PARENT NULL
+
 // shared resources
 static unsigned value = 0;
 static long long sched_time;
@@ -34,16 +40,23 @@ static void tasklet_handler(struct tasklet_struct *);
 DECLARE_TASKLET(mytasklet /*nombre*/, tasklet_handler /*funcion*/);
 
 
+// irq handlers and tasklets run in atomic context, can NOT block/sleep
+//  So, use spinlock to deal with sinchronization issues
+static DEFINE_SPINLOCK(irq_tasklet_lock);
+static DEFINE_SPINLOCK(tasklet_proc_lock);
+
 static void tasklet_handler(struct tasklet_struct *ptr)
 {
     long long now, when;
     unsigned long local_data;
     now = get_jiffies_64();
-    printk(KERN_INFO "%s: tasklet: in_interrup()=%d\tin_hardirq()=%d\tin_softirq()=%d\n", KBUILD_MODNAME, !!in_interrupt(), !!in_hardirq(), !!in_softirq());
-    // enter critical section
+    printk(KERN_INFO "%s: tasklet: in_interrup()=%d\tin_hardirq()=%d\tin_softirq()=%d\tin_atomic()=%d\n", KBUILD_MODNAME, !!in_interrupt(), !!in_hardirq(), !!in_softirq(), !!in_atomic());
+    spin_lock_irq(&irq_tasklet_lock);    // enter critical section (with irq)
     when = sched_time;
+    spin_unlock_irq(&irq_tasklet_lock); // exit critical section
+    spin_lock(&tasklet_proc_lock);      // enter critical section (with process)
     local_data = ++value;    // increment value with button push
-    // exit critical section
+    spin_unlock(&tasklet_proc_lock);    // exit critical section
     printk(KERN_NOTICE "%s: tasklet: value = %lu, sched at: %llu, run at %llu\n", KBUILD_MODNAME, local_data, now, when);
 }
 
@@ -55,16 +68,39 @@ static irqreturn_t r_irq_handler(int irq, void *dev_id)
 
     // due to switch bouncing this handler will be fired few times for every button push
     // do here ONLY the hardware related issue
-    printk(KERN_INFO "%s: %s: in_interrup()=%d\tin_hardirq()=%d\tin_softirq()=%d\n", KBUILD_MODNAME, cookie, !!in_interrupt(), !!in_hardirq(), !!in_softirq());
-    // enter critical section
+    printk(KERN_INFO "%s: %s: in_interrup()=%d\tin_hardirq()=%d\tin_softirq()=%d\tin_atomic()=%d\n", KBUILD_MODNAME, cookie, !!in_interrupt(), !!in_hardirq(), !!in_softirq(), !!in_atomic());
+    spin_lock(&irq_tasklet_lock);       // enter critical section (with tasklet)
     sched_time = now;
-    // exit critical section
+    spin_unlock(&irq_tasklet_lock);     // exit critical section
     tasklet_schedule(&mytasklet); // launch deferred job (time consuming processing)
     printk(KERN_NOTICE "%s: %s: tasklet scheduled by irq at %llu\n", KBUILD_MODNAME, cookie, now);
 
     return IRQ_HANDLED;
 }
 
+// proc file operations (read only)
+ssize_t counter_proc_read(struct file *sp_file, char __user *buf, size_t size, loff_t *offset)
+{
+    char message[20];
+    int len;
+    int local_counter;
+    if (*offset > 0) return 0; // only first read allowed, offset==0
+    printk(KERN_INFO "%s: read: in_interrup()=%d\tin_hardirq()=%d\tin_softirq()=%d\tin_atomic()=%d\n", KBUILD_MODNAME, !!in_interrupt(), !!in_hardirq(), !!in_softirq(), !!in_atomic());
+    spin_lock_bh(&tasklet_proc_lock);   // enter critical section (with tasklet)
+    printk(KERN_INFO "%s: read: <<<spin lock grabbed>>>, in_atomic()=%d\n", KBUILD_MODNAME, !!in_atomic());
+    local_counter = value;
+    spin_unlock_bh(&tasklet_proc_lock); // exit critical section
+    printk(KERN_NOTICE "%s: read: value = %d, in_atomic()=%d\n", KBUILD_MODNAME, local_counter, !!in_atomic());
+    len = sprintf(message, "%d\n", local_counter);
+    if (len > size) len = size;
+    if (copy_to_user(buf, message, len)) return -EFAULT;
+    *offset += len;
+    return len;
+}
+
+static struct proc_ops fops = {
+    .proc_read = counter_proc_read,
+};
 
 // This functions configures interrupt for button 1
 static int r_int_config(void)
@@ -103,6 +139,8 @@ static void r_cleanup(void)
     gpio_free(GPIO_BUTTON1);
 
     tasklet_kill(&mytasklet);    // destroy tasklet
+    printk(KERN_NOTICE "%s: removing entry /proc/%s\n", KBUILD_MODNAME, ENTRY_NAME);
+    remove_proc_entry(ENTRY_NAME, NULL);
     printk(KERN_NOTICE "%s: DONE\n", KBUILD_MODNAME);
     return;
 }
@@ -112,9 +150,17 @@ static int r_init(void)
     int res;
 
     printk(KERN_NOTICE "%s: module loading\n", KBUILD_MODNAME);
+    value = 0;
     if ((res = r_int_config()) < 0) {
         r_cleanup();
         return res;
+    }
+    printk(KERN_NOTICE "%s: creating entry /proc/%s\n", KBUILD_MODNAME, ENTRY_NAME);
+    if (!proc_create(ENTRY_NAME, PERMS, PARENT, &fops)) 
+    {
+        printk(KERN_ERR "%s: proc_create: ERROR!\n", KBUILD_MODNAME);
+        remove_proc_entry(ENTRY_NAME, PARENT);
+        return -ENOMEM;
     }
     return 0;
 }

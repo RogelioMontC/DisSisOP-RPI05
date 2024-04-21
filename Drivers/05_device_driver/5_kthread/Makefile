@@ -1,44 +1,39 @@
 KERNEL:= $(shell uname -r)
 KERNEL_SRC:=/lib/modules/${KERNEL}/build
 
-red:=$(shell tput setaf 1)
-green:=$(shell tput setaf 2)
-reset:=$(shell tput sgr0)
-
 ifndef MODULE
-$(error $(red)variable MODULE no definida, usar: $(reset) MODULE=<nombre> make [compile])
+$(error MODULE not defined, use: MODULE=<name> make)
 endif
-
-$(info $(green)Usando kernel: ${KERNEL}$(reset))
-$(info $(green)Variable MODULE = ${MODULE}$(reset))
 
 obj-m += ${MODULE}.o
 
 .PHONY : compile install uninstall clean
  
 install: uninstall compile
-	@tput setaf 1
-	@echo "instalando modulo..."
+	@tput setaf 2
+	@echo "instaling module"
 	@tput sgr0
 	sudo insmod ${MODULE}.ko 
 	dmesg | tail 
+	@echo "done"
 
 compile:
-	@tput setaf 1
-	@echo "compilando modulo..."
+	@tput setaf 2
+	@echo "compiling module"
 	@tput sgr0
 	make -C ${KERNEL_SRC} M=${CURDIR} modules
+	@echo "done"
 	
 uninstall:
 	@if lsmod | grep ${MODULE} ; then\
 	  tput setaf 1;\
-	  echo "desistalando modulo..."; \
+	  echo "removing module"; \
 	  tput sgr0;\
 	  sudo rmmod ${MODULE}; \
 	  dmesg | tail -4 ;\
 	fi
+	@echo "done"
 
 clean:
-	-rm -rf *.o *.mod.c *.symvers *.order .*.cmd
-	-rm *.ko *.mod
-
+	-rm Module.symvers modules.order ${MODULE}.o ${MODULE}.mod* ${MODULE}.ko
+	-rm .Module.symvers.cmd .modules.order.cmd .${MODULE}.*.cmd

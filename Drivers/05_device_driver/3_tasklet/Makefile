@@ -7,7 +7,7 @@ endif
 
 obj-m += ${MODULE}.o
 
-.PHONY : compile install uninstall
+.PHONY : compile install uninstall clean
  
 install: uninstall compile
 	@tput setaf 2

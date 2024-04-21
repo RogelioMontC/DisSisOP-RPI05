@@ -11,18 +11,21 @@
 #include <linux/gpio.h>
 
 #define DRIVER_AUTHOR "DAC-UMA"
-#define DRIVER_DESC   "locking example"
+#define DRIVER_DESC   "locking in wait_queue example"
 
 //GPIOS numbers as in BCM RPi
 
 #define GPIO_BUTTON1 2
 
-// counting semaphore
-DEFINE_SEMAPHORE(semaphore);    // semaphore value = 1
-static unsigned int value = 1;
+// Synchronization variables
+static DECLARE_WAIT_QUEUE_HEAD(my_wait_queue);
+static DEFINE_SPINLOCK(lock);
+
+// locking condition, this may be more complex than a variable
+int should_block = 1;
 
 // Interrupts variables
-static short int irq_BUTTON1 = 0;
+static short int irq_BUTTON1    = 0;
 
 // text below will be seen in 'cat /proc/interrupts' command
 #define GPIO_BUTTON1_DESC           "Button 1"
@@ -31,11 +34,16 @@ static short int irq_BUTTON1 = 0;
 #define GPIO_BUTTON1_DEVICE_DESC    "Berryclip"
 
 // IRQ handler - fired on interrupt
-static irqreturn_t r_irq_handler1(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t r_irq_handler(int irq, void *dev_id)
 {
-    value++;        // incr. the number of button push
-    printk(KERN_INFO " interrupt -> value=%d\n", value);
-    up(&semaphore); // counting the number of button push
+    // semaphores cannot be used in interrupt nor softIRQ code (tasklet, timer)
+    //  since block (only possible in process context: process syscall,
+    //  kernel thread or work queue)
+    spin_lock(&lock);    // A softirq never preempts another softirq, spin_lock_bh() not necesary
+    should_block = 0; // lock condition, it should be complex
+    spin_unlock(&lock);
+    printk(KERN_INFO "%s: [INTR] Wake up process\n", KBUILD_MODNAME);
+    wake_up(&my_wait_queue); //wake up process in the queue
  
     return IRQ_HANDLED;
 }
@@ -48,20 +56,20 @@ static int r_int_config(void)
         return res;
     }
     if ((res = gpio_request(GPIO_BUTTON1, GPIO_BUTTON1_DESC))) {
-        printk(KERN_ERR "GPIO request faiure: %s\n", GPIO_BUTTON1_DESC);
+        printk(KERN_ERR "%s: GPIO request faiure: %s\n", KBUILD_MODNAME, GPIO_BUTTON1_DESC);
         return res;
     }
     if ((irq_BUTTON1 = gpio_to_irq(GPIO_BUTTON1)) < 0) {
-        printk(KERN_ERR "GPIO to IRQ mapping faiure %s\n", GPIO_BUTTON1_DESC);
+        printk(KERN_ERR "%s:  GPIO to IRQ mapping faiure %s\n", KBUILD_MODNAME, GPIO_BUTTON1_DESC);
         return irq_BUTTON1;
     }
-    printk(KERN_NOTICE "Mapped int %d for button1 in gpio %d\n", irq_BUTTON1, GPIO_BUTTON1);
+    printk(KERN_NOTICE "%s: Mapped int %d for button1 in gpio %d\n", KBUILD_MODNAME, irq_BUTTON1, GPIO_BUTTON1);
     if ((res = request_irq(irq_BUTTON1,
-                    (irq_handler_t ) r_irq_handler1,
+                    (irq_handler_t) r_irq_handler,
                     IRQF_TRIGGER_FALLING,
                     GPIO_BUTTON1_DESC,
                     GPIO_BUTTON1_DEVICE_DESC))) {
-        printk(KERN_ERR "Irq Request failure\n");
+        printk(KERN_ERR "%s:  Irq Request failure\n", KBUILD_MODNAME);
         return res;
     }
     return 0;
@@ -70,18 +78,27 @@ static int r_int_config(void)
 // device file operations
 static ssize_t b_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-    char *respuesta="OK\n";
     int len;
 
-    if (*ppos != 0) return 0;
-    
-    if (down_interruptible(&semaphore)) return -ERESTARTSYS;
-    value--;
-    printk(KERN_INFO " read -> value=%d\n", value);
+    len = (count < 3)? count: 3; 
 
-    len = (count < 3)? count: 3;
-    if (copy_to_user(buf, respuesta, len)) return -EFAULT;
-    *ppos += len;
+    if (*ppos == 0) *ppos += len;
+    else return 0;
+    
+    spin_lock_irq(&lock); // disable irqs on that CPU and then grabs the lock
+    while (should_block) // check lock condition (could be complex)
+    {   // we are blocked!
+        spin_unlock_irq(&lock);   // release the spin_lock, irq may grab it
+        printk( KERN_INFO "%s: (read) start waiting\n", KBUILD_MODNAME);
+        if (wait_event_interruptible(my_wait_queue, !should_block))  return -ERESTARTSYS;
+        spin_lock_irq(&lock);     // grab the spinlock to re-check safely the condition
+    }
+    printk(KERN_INFO "%s: (read) end of waiting\n", KBUILD_MODNAME);
+    should_block = 1; // event consumed, so the next process should block
+    spin_unlock_irq(&lock);
+
+    if (copy_to_user(buf, "OK", len)) return -EFAULT;
+
     return len;
 }
 
@@ -103,8 +120,8 @@ static int r_dev_config(void)
 {
     int ret = 0;
     ret = misc_register(&b_miscdev);
-    if (ret < 0) printk(KERN_ERR "misc_register failed\n");
-    else printk(KERN_NOTICE "misc_register OK... b_miscdev.minor=%d\n", b_miscdev.minor);
+    if (ret < 0) printk(KERN_ERR "%s: misc_register failed\n", KBUILD_MODNAME);
+    else printk(KERN_NOTICE "%s: misc_register OK... b_miscdev.minor=%d\n", KBUILD_MODNAME, b_miscdev.minor);
     return ret;
 }
 
@@ -112,13 +129,13 @@ static int r_dev_config(void)
 // Module init & cleanup
 static void r_cleanup(void)
 {
-    printk(KERN_NOTICE "cleaning up module '%s'\n", KBUILD_MODNAME);
+    printk(KERN_NOTICE "%s: Cleaning up\n", KBUILD_MODNAME);
     if (b_miscdev.this_device) misc_deregister(&b_miscdev);
     
     if (irq_BUTTON1) free_irq(irq_BUTTON1, GPIO_BUTTON1_DEVICE_DESC);
     gpio_free(GPIO_BUTTON1);
     
-    printk(KERN_NOTICE "Done. Bye from module '%s'\n", KBUILD_MODNAME);
+    printk(KERN_NOTICE "%s: Done.\n", KBUILD_MODNAME);
     return;
 }
 
@@ -127,14 +144,14 @@ static int r_init(void)
     int res;
     printk(KERN_NOTICE "Loading module '%s'\n", KBUILD_MODNAME);
 
-    printk(KERN_NOTICE "%s - devices config...\n", KBUILD_MODNAME);
+    printk(KERN_NOTICE "%s: devices config...\n", KBUILD_MODNAME);
     if((res = r_dev_config()))
     {
         r_cleanup();
         return res;
     }
 
-    printk(KERN_NOTICE "%s - INT config...\n", KBUILD_MODNAME);
+    printk(KERN_NOTICE "%s: INT config...\n", KBUILD_MODNAME);
     if((res = r_int_config()))
     {
         r_cleanup();

@@ -8,7 +8,6 @@
 #define DRIVER_DESC   "Tasklet example"
 
 static void tasklet_handler(struct tasklet_struct *);
-
 DECLARE_TASKLET(mytasklet /*nombre*/, tasklet_handler /*funcion*/);
 
 static void tasklet_handler(struct tasklet_struct *ptr)

@@ -43,7 +43,7 @@ static irqreturn_t irq_thread_function(int irq, void *dev_id)
 {
     short int local_value;
     char *cookie = (char*)dev_id;
-    printk(KERN_INFO "%s: in_interrup()=%d\tin_hardirq()=%d\tin_softirq()=%d\n" KBUILD_MODNAME, !!in_interrupt(), !!in_hardirq(), !!in_softirq());
+    printk(KERN_INFO "%s: in_interrup()=%d\tin_hardirq()=%d\tin_softirq()=%d\n", KBUILD_MODNAME, !!in_interrupt(), !!in_hardirq(), !!in_softirq());
 
     // we will increment value with button push
     local_value = ++value;

@@ -10,19 +10,19 @@
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 
-#define DRIVER_AUTHOR "DAC-UMA"
-#define DRIVER_DESC   "locking example"
+#define DRIVER_AUTHOR "Rogelio y Augusto"
+#define DRIVER_DESC   "buttons driver with wait_queue and locking"
 
 //GPIOS numbers as in BCM RPi
 
 #define GPIO_BUTTON1 2
 
-// declaramos la cola para bloqueo
-DECLARE_WAIT_QUEUE_HEAD(cola_de_espera);
-DEFINE_SPINLOCK(lock);
+// Synchronization variables
+static DECLARE_WAIT_QUEUE_HEAD(my_wait_queue);
+static DEFINE_SPINLOCK(lock);
 
-// condición de bloqueo
-int condicion_de_bloqueo = 1;
+// locking condition, this may be more complex than a variable
+int should_block = 1;
 
 // Interrupts variables
 static short int irq_BUTTON1    = 0;
@@ -34,16 +34,16 @@ static short int irq_BUTTON1    = 0;
 #define GPIO_BUTTON1_DEVICE_DESC    "Berryclip"
 
 // IRQ handler - fired on interrupt
-static irqreturn_t r_irq_handler1(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t r_irq_handler(int irq, void *dev_id)
 {
-    // semaphores cannot be used in interrupt or soft IRQ or tasklet code
-    //  since may block (only possible in process context: process syscall,
-    //  kernel thread or work queue (dealed by kthread)
+    // semaphores cannot be used in interrupt nor softIRQ code (tasklet, timer)
+    //  since block (only possible in process context: process syscall,
+    //  kernel thread or work queue)
     spin_lock(&lock);    // A softirq never preempts another softirq, spin_lock_bh() not necesary
-    condicion_de_bloqueo = 0; // lock condition, it should be complex
+    should_block = 0; // lock condition, it should be complex
     spin_unlock(&lock);
     printk(KERN_INFO "%s: [INTR] Wake up process\n", KBUILD_MODNAME);
-    wake_up(&cola_de_espera); //despierta a los procesos en espera
+    wake_up(&my_wait_queue); //wake up process in the queue
  
     return IRQ_HANDLED;
 }
@@ -65,7 +65,7 @@ static int r_int_config(void)
     }
     printk(KERN_NOTICE "%s: Mapped int %d for button1 in gpio %d\n", KBUILD_MODNAME, irq_BUTTON1, GPIO_BUTTON1);
     if ((res = request_irq(irq_BUTTON1,
-                    (irq_handler_t ) r_irq_handler1,
+                    (irq_handler_t) r_irq_handler,
                     IRQF_TRIGGER_FALLING,
                     GPIO_BUTTON1_DESC,
                     GPIO_BUTTON1_DEVICE_DESC))) {
@@ -78,28 +78,26 @@ static int r_int_config(void)
 // device file operations
 static ssize_t b_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-    char *respuesta="OK\n";
     int len;
-    unsigned long flags;
 
     len = (count < 3)? count: 3; 
 
     if (*ppos == 0) *ppos += len;
     else return 0;
     
-    spin_lock_irqsave(&lock, flags); // disable softirqs on that CPU and then grabs the lock
-    while (condicion_de_bloqueo) // check lock condition (should be complex)
+    spin_lock_irq(&lock); // disable irqs on that CPU and then grabs the lock
+    while (should_block) // check lock condition (could be complex)
     {   // we are blocked!
-        spin_unlock_irqrestore(&lock, flags);   // release the spin_lock, softirq may grab it
+        spin_unlock_irq(&lock);   // release the spin_lock, irq may grab it
         printk( KERN_INFO "%s: (read) start waiting\n", KBUILD_MODNAME);
-        if (wait_event_interruptible(cola_de_espera, !condicion_de_bloqueo))  return -ERESTARTSYS;
-        spin_lock_irqsave(&lock, flags);     // grab the spinlock to re-check safely the condition
+        if (wait_event_interruptible(my_wait_queue, !should_block))  return -ERESTARTSYS;
+        spin_lock_irq(&lock);     // grab the spinlock to re-check safely the condition
     }
     printk(KERN_INFO "%s: (read) end of waiting\n", KBUILD_MODNAME);
-    condicion_de_bloqueo = 1; // vuelve a dejar la condición de bloqueo a 1
-    spin_unlock_irqrestore(&lock, flags);
+    should_block = 1; // event consumed, so the next process should block
+    spin_unlock_irq(&lock);
 
-    if (copy_to_user(buf, respuesta, len)) return -EFAULT;
+    if (copy_to_user(buf, "OK", len)) return -EFAULT;
 
     return len;
 }

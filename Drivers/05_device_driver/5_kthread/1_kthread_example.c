@@ -10,10 +10,15 @@
 #define DRIVER_DESC   "kthread example"
 
 // Globals
-#define ENTRY_NAME "counter"
+//  proc entry
+#define ENTRY_NAME "counter5"
 #define PERMS 0644
 #define PARENT NULL
-static struct task_struct *kthread;
+//  kthread id & data
+#define KTHREAD_NAME "kthread counter5"
+static struct task_struct *kthread; // shared between r_init & r_cleanup
+static char counter5_data[] = "arg passed to the thread";
+
 
 // kthread run function
 //  Kthread structure:
@@ -28,16 +33,18 @@ int kthread_function(void *arg)
    return res;
 }
 */
-int counter_run(void *data) 
+int counter5_run(void *arg) 
 {
-    static int counter;
+    static int counter = 0;
+    char *data = (char *)arg;
+    printk(KERN_INFO "%s: %s\n", KBUILD_MODNAME, data);
     printk(KERN_INFO "%s: in_interrup()=%d\tin_hardirq()=%d\tin_softirq()=%d\n", KBUILD_MODNAME, !!in_interrupt(), !!in_hardirq(), !!in_softirq());
     while (!kthread_should_stop()) {
-        ssleep(1);	// long rem = msleep_interruptible(1000);
+        ssleep(5);	// long rem = msleep_interruptible(5000);
         counter++;
-        printk(KERN_INFO "%s: counter = %d\n", KBUILD_MODNAME, counter);
+        printk(KERN_INFO "%s: counter5 = %d\n", KBUILD_MODNAME, counter);
     }
-    printk(KERN_NOTICE "%s: the counter thread has terminated\n", KBUILD_MODNAME);
+    printk(KERN_NOTICE "%s: the kthread counter5 has terminated\n", KBUILD_MODNAME);
     return counter;
 }
 
@@ -45,9 +52,8 @@ int counter_run(void *data)
 int r_init(void) 
 {
     printk(KERN_NOTICE "%s: module loading\n", KBUILD_MODNAME);
-    counter=0;
-    printk(KERN_NOTICE "%s: kthread counter created\n", KBUILD_MODNAME);
-    kthread = kthread_run(counter_run, NULL, ENTRY_NAME);
+    kthread = kthread_run(counter5_run, counter5_data, ENTRY_NAME);
+    printk(KERN_NOTICE "%s: kthread counter5 created\n", KBUILD_MODNAME);
     if (IS_ERR(kthread)) 
     { 
         printk(KERN_ERR "%s: kthread_run: ERROR!\n", KBUILD_MODNAME);
