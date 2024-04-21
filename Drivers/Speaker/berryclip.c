@@ -287,6 +287,7 @@ static void r_cleanup(void)
     for(i = 0; i < NUM_LEDS; i++) {
         gpio_free(gpio_led[i]);
     }
+    gpio_free(GPIO_SPEAKER);
     for(i = 0; i < NUM_MINORS; i++) {
         cdev_del(&berryclip_cdev[i]); // release devs[i] fields
         device_destroy(berryclip_class, device[i]);

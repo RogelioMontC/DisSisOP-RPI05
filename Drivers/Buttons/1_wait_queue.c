@@ -10,12 +10,15 @@
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 
+// Cola --> B1,B1,B1,B2,B2,B1,B2,B2,B2 == B1,B2,B2,B1,B2
+
 #define DRIVER_AUTHOR "Rogelio y Augusto"
 #define DRIVER_DESC   "buttons driver with wait_queue and locking"
 
 //GPIOS numbers as in BCM RPi
 
 #define GPIO_BUTTON1 2
+#define GPIO_BUTTON2 3
 
 // Synchronization variables
 static DECLARE_WAIT_QUEUE_HEAD(my_wait_queue);
@@ -26,25 +29,55 @@ int should_block = 1;
 
 // Interrupts variables
 static short int irq_BUTTON1    = 0;
+static short int irq_BUTTON2    = 0;
+static char value               = '0';
 
 // text below will be seen in 'cat /proc/interrupts' command
 #define GPIO_BUTTON1_DESC           "Button 1"
+#define GPIO_BUTTON2_DESC           "Button 2"
 
 // below is optional, used in more complex code, in our case, this could be
 #define GPIO_BUTTON1_DEVICE_DESC    "Berryclip"
 
+
+
 // IRQ handler - fired on interrupt
-static irqreturn_t r_irq_handler(int irq, void *dev_id)
+#define MAX_GAP_IN_JIFFIES 20
+//top half
+static irqreturn_t r_irq_handlerB1(int irq, void *dev_id)
 {
     // semaphores cannot be used in interrupt nor softIRQ code (tasklet, timer)
     //  since block (only possible in process context: process syscall,
     //  kernel thread or work queue)
-    spin_lock(&lock);    // A softirq never preempts another softirq, spin_lock_bh() not necesary
-    should_block = 0; // lock condition, it should be complex
-    spin_unlock(&lock);
-    printk(KERN_INFO "%s: [INTR] Wake up process\n", KBUILD_MODNAME);
-    wake_up(&my_wait_queue); //wake up process in the queue
- 
+    static unsigned long long last = 0;
+    unsigned long long now = get_jiffies_64();
+    if (now - last < MAX_GAP_IN_JIFFIES) {
+        spin_lock(&lock);    // A softirq never preempts another softirq, spin_lock_bh() not necesary
+        should_block = 0; // lock condition, it should be complex
+        value = '1';
+        spin_unlock(&lock);
+        printk(KERN_INFO "%s: [INTR] Wake up process\n", KBUILD_MODNAME);
+        wake_up(&my_wait_queue); //wake up process in the queue
+    }
+
+    return IRQ_HANDLED;
+}
+static irqreturn_t r_irq_handlerB2(int irq, void *dev_id)
+{
+    // semaphores cannot be used in interrupt nor softIRQ code (tasklet, timer)
+    //  since block (only possible in process context: process syscall,
+    //  kernel thread or work queue)
+    static unsigned long long last = 0;
+    unsigned long long now = get_jiffies_64();
+    if (now - last < MAX_GAP_IN_JIFFIES) {
+        spin_lock(&lock);    // A softirq never preempts another softirq, spin_lock_bh() not necesary
+        should_block = 0; // lock condition, it should be complex
+        value = '2';
+        spin_unlock(&lock);
+        printk(KERN_INFO "%s: [INTR] Wake up process\n", KBUILD_MODNAME);
+        wake_up(&my_wait_queue); //wake up process in the queue
+    }
+
     return IRQ_HANDLED;
 }
 
@@ -55,8 +88,16 @@ static int r_int_config(void)
         printk(KERN_ERR "%s: Invalid GPIO %d\n", KBUILD_MODNAME, GPIO_BUTTON1);
         return res;
     }
+    if ((res = gpio_is_valid(GPIO_BUTTON2)) < 0) {
+        printk(KERN_ERR "%s: Invalid GPIO %d\n", KBUILD_MODNAME, GPIO_BUTTON2);
+        return res;
+    }
     if ((res = gpio_request(GPIO_BUTTON1, GPIO_BUTTON1_DESC))) {
         printk(KERN_ERR "%s: GPIO request faiure: %s\n", KBUILD_MODNAME, GPIO_BUTTON1_DESC);
+        return res;
+    }
+        if ((res = gpio_request(GPIO_BUTTON2, GPIO_BUTTON2_DESC))) {
+        printk(KERN_ERR "%s: GPIO request faiure: %s\n", KBUILD_MODNAME, GPIO_BUTTON2_DESC);
         return res;
     }
     if ((irq_BUTTON1 = gpio_to_irq(GPIO_BUTTON1)) < 0) {
@@ -64,10 +105,23 @@ static int r_int_config(void)
         return irq_BUTTON1;
     }
     printk(KERN_NOTICE "%s: Mapped int %d for button1 in gpio %d\n", KBUILD_MODNAME, irq_BUTTON1, GPIO_BUTTON1);
+    if ((irq_BUTTON2 = gpio_to_irq(GPIO_BUTTON2)) < 0) {
+        printk(KERN_ERR "%s:  GPIO to IRQ mapping faiure %s\n", KBUILD_MODNAME, GPIO_BUTTON2_DESC);
+        return irq_BUTTON2;
+    }
+    printk(KERN_NOTICE "%s: Mapped int %d for button2 in gpio %d\n", KBUILD_MODNAME, irq_BUTTON2, GPIO_BUTTON2);
     if ((res = request_irq(irq_BUTTON1,
-                    (irq_handler_t) r_irq_handler,
+                    (irq_handler_t) r_irq_handlerB1,
                     IRQF_TRIGGER_FALLING,
                     GPIO_BUTTON1_DESC,
+                    GPIO_BUTTON1_DEVICE_DESC))) {
+        printk(KERN_ERR "%s:  Irq Request failure\n", KBUILD_MODNAME);
+        return res;
+    }
+    if ((res = request_irq(irq_BUTTON2,
+                    (irq_handler_t) r_irq_handlerB2,
+                    IRQF_TRIGGER_FALLING,
+                    GPIO_BUTTON2_DESC,
                     GPIO_BUTTON1_DEVICE_DESC))) {
         printk(KERN_ERR "%s:  Irq Request failure\n", KBUILD_MODNAME);
         return res;
@@ -96,8 +150,9 @@ static ssize_t b_read(struct file *file, char __user *buf, size_t count, loff_t 
     printk(KERN_INFO "%s: (read) end of waiting\n", KBUILD_MODNAME);
     should_block = 1; // event consumed, so the next process should block
     spin_unlock_irq(&lock);
-
-    if (copy_to_user(buf, "OK", len)) return -EFAULT;
+    char buffer;
+    sprintf(&buffer, "%s: read value = %c\n",KBUILD_MODNAME ,value);
+    if (copy_to_user(buf, &buffer, strlen(&buffer))) return -EFAULT;
 
     return len;
 }

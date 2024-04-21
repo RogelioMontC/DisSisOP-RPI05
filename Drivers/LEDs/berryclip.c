@@ -32,39 +32,39 @@ static char *desc_led[] = { "RED1", "RED2",
                             "GREEN1", "GREEN2" };
 
 
-static char leds2byte(void){
+static int* leds2byte(void){
     int val;
-    char ch;
+    int* ch = vmalloc(6*sizeof(int));
     int i;
-    ch=0;
     for(i=0; i<6; i++){
         val = gpio_get_value(gpio_led[i]);
-        ch = ch | (val << i);
+        ch[i] |= (val << i);
     }
     return ch;
 }
 
-static void byte2leds(char ch){
+static void byte2leds(char* ch){
     int i;
-    int val = (int)ch;
-    int bit = (int)leds2byte();
-
-    if(val>>7==0 && val>>6==0) {
-        for(i=0; i<6; i++) gpio_set_value(gpio_led[i], (val >> i) & 1);
-        printk(KERN_INFO "%s: set all leds to %d\n", KBUILD_MODNAME, val);
-    }else if(val>>6==1){
-        bit = val | bit;
-        for (i=0; i<6; i++) gpio_set_value(gpio_led[i], (val >> i) & 1);
-        printk(KERN_INFO "%s: set all leds to %d\n", KBUILD_MODNAME, bit);
-    }else if(val>>7==1){
-        int aux= ~val;
-        bit=aux & bit;
-        for(i=0; i<6; i++) gpio_set_value(gpio_led[i], (val >> i) & 1);
-        printk(KERN_INFO "%s: set all leds to %d\n", KBUILD_MODNAME, bit);
+    int val     =   (int)ch;
+    int* bit    =   leds2byte();
+    int valor0  =   val>>7;
+    int valor1  =   val>>6;
+    if(valor0==0 && valor1==0) {
+        for(i=0; i<6; i++) gpio_set_value(gpio_led[i], val>>i);
+        printk(KERN_INFO "%s: set all leds\n", KBUILD_MODNAME);
+    }else if(valor1==1){
+        //bit = val | bit;
+        for (i=0; i<6; i++) gpio_set_value(gpio_led[i], val>>i | bit[i]);
+        printk(KERN_INFO "%s: set all leds to OR\n", KBUILD_MODNAME);
+    }else if(valor0==1){
+        //int aux= ~val;
+        //bit=aux & bit;
+        for(i=0; i<6; i++) gpio_set_value(gpio_led[i], val>>i & (~bit[i]));
+        printk(KERN_INFO "%s: set all leds to Bit & ~val\n", KBUILD_MODNAME);
     }else {
-        bit ^= val;
-        for(i=0; i<6; i++) gpio_set_value(gpio_led[i], (val >> i) & 1);
-        printk(KERN_INFO "%s: set all leds to %d\n", KBUILD_MODNAME, bit);
+        //bit ^= val;
+        for(i=0; i<6; i++) gpio_set_value(gpio_led[i], val>>i ^ bit[i]);
+        printk(KERN_INFO "%s: set all leds to Bit ^ val\n", KBUILD_MODNAME);
     }
 }
 
@@ -75,7 +75,7 @@ static void byte2leds(char ch){
 static ssize_t all_leds_write(struct file *file, const char __user *buf,
                           size_t count, loff_t *ppos)
 {
-    char ch;
+    char ch[8];
     int minor = iminor(file->f_path.dentry->d_inode);
 
     if (*ppos > 0) return count;
