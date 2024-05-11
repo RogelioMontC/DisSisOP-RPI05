@@ -1,7 +1,7 @@
 KERNEL= $(shell uname -r)
 KERNEL_SRC=/lib/modules/${KERNEL}/build
 
-MODULE=media
+MODULE=mean
 
 obj-m += ${MODULE}.o
 

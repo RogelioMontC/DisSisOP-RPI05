@@ -1,1 +1,0 @@
-cmd_/home/rogelio/Documentos/DisOp/DisSisOP-RPI05/CalculadorMedia/Module.symvers :=  sed 's/ko$$/o/'  /home/rogelio/Documentos/DisOp/DisSisOP-RPI05/CalculadorMedia/modules.order | scripts/mod/modpost -m     -o /home/rogelio/Documentos/DisOp/DisSisOP-RPI05/CalculadorMedia/Module.symvers -e -i Module.symvers -T - 
