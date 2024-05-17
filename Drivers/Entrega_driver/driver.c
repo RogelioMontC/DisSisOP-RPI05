@@ -151,10 +151,11 @@ static DECLARE_TASKLET(tasklet_B1, tasklet_handler1);
 static DECLARE_TASKLET(tasklet_B2, tasklet_handler2);
 
 
-static void timer_handler_B1(unsigned long data){
+
+static void timer_handler_B1(struct timer_list *timer){
     button1_allow = 1;
 }
-static void timer_handler_B2(unsigned long data){
+static void timer_handler_B2(struct timer_list *timer){
     button2_allow = 1;
 }
 
@@ -289,24 +290,24 @@ static int r_dev_init(void){
     if (gpio_direction_output(LED6, 0) < 0) return -1;
     if (gpio_direction_output(SPEAKER, 0) < 0) return -1;
 
-    if ((irq_B1 = gpio_to_irq(BUTTON1)) < 0){
+    if ((button1_irq = gpio_to_irq(BUTTON1)) < 0){
         printk(KERN_ERR "Error al obtener la IRQ del boton 1\n");
         return button1_irq;
     }
 
-    if ((irq_B2 = gpio_to_irq(BUTTON2)) < 0){
+    if ((button2_irq = gpio_to_irq(BUTTON2)) < 0){
         printk(KERN_ERR "Error al obtener la IRQ del boton 2\n");
         return button2_irq;
     }
     int i = 0;
-    if(i = request_irq(irq_B1, 
+    if(i = request_irq(button1_irq, 
                         (irq_handler_t) irq_handler, 
                         IRQF_TRIGGER_RISING, 
                         "BOTON 1", "Boton 1 pulsado") < 0){
         printk(KERN_ERR "Error al solicitar la IRQ del boton 1\n");
         return i;
     }
-    if(i = request_irq(irq_B2, 
+    if(i = request_irq(button2_irq, 
                         (irq_handler_t) irq_handler, 
                         IRQF_TRIGGER_RISING, 
                         "BOTON 2", "Boton 2 pulsado") < 0){
