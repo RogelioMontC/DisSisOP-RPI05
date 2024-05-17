@@ -73,7 +73,7 @@ static ssize_t leds_write(struct file *file, const char *buf, size_t count, loff
     unsigned char ch;
     if(copy_from_user(&ch, buf, 1)) return -EFAULT;
     printk(KERN_INFO "%s: dev leds: %c\n", (int)ch);
-    byte2leds(ch, (ch >> 6))
+    byte2leds(ch, (ch >> 6));
     return 1;
 }
 
@@ -150,8 +150,6 @@ static void tasklet_handler2(struct tasklet_struct *task){
 static DECLARE_TASKLET(tasklet_B1, tasklet_handler1);
 static DECLARE_TASKLET(tasklet_B2, tasklet_handler2);
 
-static DEFINE_TIMER(timer_B1, timer_handler_B1);
-static DEFINE_TIMER(timer_B2, timer_handler_B2);
 
 static void timer_handler_B1(unsigned long data){
     button1_allow = 1;
@@ -160,8 +158,11 @@ static void timer_handler_B2(unsigned long data){
     button2_allow = 1;
 }
 
+static DEFINE_TIMER(timer_B1, timer_handler_B1);
+static DEFINE_TIMER(timer_B2, timer_handler_B2);
+
 static irqreturn_t irq_handler(int irq, void *dev_id){
-    jiffie = msec_to_jiffies(time_waiting);
+    jiffie = msecs_to_jiffies(time_waiting);
     if (irq == button1_irq){
         if (button1_allow){
             button1_allow = 0;
@@ -251,8 +252,8 @@ static void r_dev_cleanup(void){
     if(speaker_dev.this_device) misc_deregister(&speaker_dev);
     if(buttons_dev.this_device) misc_deregister(&buttons_dev);
 
-    if(irq_B1) free_irq(irq_B1, "boton 1 liberado");
-    if(irq_B2) free_irq(irq_B2, "boton 2 liberado");
+    if(button1_irq) free_irq(button1_irq, "boton 1 liberado");
+    if(button2_irq) free_irq(button2_irq, "boton 2 liberado");
 
     del_timer(&timer_B1);
     del_timer(&timer_B2);
