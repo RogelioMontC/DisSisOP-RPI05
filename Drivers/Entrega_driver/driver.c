@@ -256,12 +256,12 @@ static void r_dev_cleanup(void){
     if(button1_irq) free_irq(button1_irq, "boton 1 liberado");
     if(button2_irq) free_irq(button2_irq, "boton 2 liberado");
 
-    del_timer(&timer_B1);
-    del_timer(&timer_B2);
-
     tasklet_kill(&tasklet_B1);
     tasklet_kill(&tasklet_B2);
 
+    del_timer(&timer_B1);
+    del_timer(&timer_B2);
+    
     printk(KERN_INFO "%s: Modulo descargado\n", KBUILD_MODNAME);
     return;
 }
