@@ -50,7 +50,7 @@ static int mi_getattr(const char *path, struct stat *stbuf)
 		stbuf->st_atime = mis_datos->st_atime;
 		stbuf->st_mtime = mis_datos->st_mtime;
 		stbuf->st_ctime = mis_datos->st_ctime;
-		stbuf->st_size = 1024;
+		stbuf->st_size = 4096;
 		stbuf->st_blocks = 2;
 		
 	} else if ((i= buscar_fichero(path, mis_datos)) >= 0) {
@@ -76,7 +76,7 @@ static int mi_getattr(const char *path, struct stat *stbuf)
 		stbuf->st_atime = mis_datos->st_atime;
 		stbuf->st_mtime = mis_datos->st_mtime;
 		stbuf->st_ctime = mis_datos->st_ctime;
-		stbuf->st_size = 1024;
+		stbuf->st_size = 4096;
 		stbuf->st_blocks = 2;
 	}else if(strncmp(path+1,"BIG",3) == 0 ) {
 		if ((i= buscar_fichero(path+4, mis_datos)) >= 0) {
@@ -104,7 +104,7 @@ static int mi_getattr(const char *path, struct stat *stbuf)
 		stbuf->st_atime = mis_datos->st_atime;
 		stbuf->st_mtime = mis_datos->st_mtime;
 		stbuf->st_ctime = mis_datos->st_ctime;
-		stbuf->st_size = 1024;
+		stbuf->st_size = 4096;
 		stbuf->st_blocks = 2;
 	}else if(strncmp(path+1,"little",6) == 0 ){
 		if ((i= buscar_fichero(path+7, mis_datos)) >= 0) {
@@ -151,8 +151,9 @@ static int mi_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		
 		for (i=0; i< mis_datos->numero_ficheros; i++)
 		{
-			if (filler(buf,mis_datos->nombre_ficheros[i], NULL, 0) != 0)
-				return -ENOMEM;
+			if (strcmp(mis_datos->nombre_ficheros[i],"largo") != 0)
+				if (filler(buf,mis_datos->nombre_ficheros[i], NULL, 0) != 0)
+					return -ENOMEM;
 		}
 	}else if(strcmp(path+1,"BIG")==0){
 	
@@ -161,7 +162,8 @@ static int mi_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		
 		for (i=0; i< mis_datos->numero_ficheros; i++){
 			if (strlen(mis_datos->contenido_ficheros[i]) >= 256)
-				if(filler(buf,mis_datos->nombre_ficheros[i], NULL, 0) != 0) return -ENOMEM;
+				if (strcmp(mis_datos->nombre_ficheros[i],"largo") != 0)
+					if(filler(buf,mis_datos->nombre_ficheros[i], NULL, 0) != 0) return -ENOMEM;
 		}
 	}else if(strcmp(path+1,"little")==0){
 	
