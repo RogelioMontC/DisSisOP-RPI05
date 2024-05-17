@@ -16,4 +16,4 @@ uninstall:
 	
 clean:
 	-rm Module.symvers modules.order ${MODULE}.o ${MODULE}.mod* ${MODULE}.ko
-    -rm .Module.symvers.cmd .modules.order.cmd .${MODULE}.*.cmd
+	-rm .Module.symvers.cmd .modules.order.cmd .${MODULE}.*.cmd
