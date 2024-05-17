@@ -51,7 +51,7 @@ Desinstalación y descarga del driver como módulo de kernel:
 
 Autoría y Licencia
 Este módulo de kernel fue desarrollado por 
-    Grupo J. Augusto y Rogelio
+    Grupo J. Augusto Jiménez Jiménez y Rogelio Montosa Callejón
 como parte de la asignatura de Diseño de Sistemas Operativos. 
 
 Está licenciado bajo GPL.
