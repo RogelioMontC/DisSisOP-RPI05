@@ -21,11 +21,25 @@ Altavoz
 Permite activar y desactivar un altavoz conectado a la Raspberry Pi. 
 Esto se realiza mediante operaciones de escritura al dispositivo de altavoz.
     Compile y use el archivo ./prueba_speaker2.c y ./sonidoTetris.c para comprobar el funcionamiento del dispositivo Speaker.
+    
+        gcc -C prueba_speaker2.c -o prueba_speaker2
+        gcc -C sonidoTetris.c -o sonidoTetris
+    
+    Y ejecutar los archivos:
+    
+        ./prueba_speaker2
+        ./sonidoTetris
 
 Botones
 El módulo maneja interrupciones de hasta dos botones conectados a la Raspberry Pi. 
 Los botones son gestionados mediante el uso de interrupciones, y se implementa un mecanismo de debounce para evitar problemas de rebote.
     Compile y use el archivo ./lee_buttons.c para comprobar el funcionamiento del dispositivo Buttons
+    
+        gcc -C lee_buttons.c -o lee_buttons
+    
+    Y ejecutar los archivos
+
+        ./lee_buttons
 
 Instalación
 Compila el módulo e instala el driver como módulo de kernel:
@@ -39,4 +53,5 @@ Autoría y Licencia
 Este módulo de kernel fue desarrollado por 
     Grupo J. Augusto y Rogelio
 como parte de la asignatura de Diseño de Sistemas Operativos. 
+
 Está licenciado bajo GPL.
