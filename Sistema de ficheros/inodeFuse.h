@@ -13,8 +13,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <linux/fs.h>
-#include <linux/path.h>
-#include "list.h"
+
 
 #define NAME_SIZE 40    /* 192 bytes */
 
@@ -129,49 +128,20 @@ struct file_operations {
     int (*readdir) (struct file *file, void *dirent, filldir_t filldir);
 };
 
-/**
- * @brief Search for an inode in the file system.
- * @param path The path of the inode.
- * @param inode Pointer to the inode structure to be filled.
- * @return 0 if the inode is found, -1 otherwise.
- */
-int search_inode(const char *path, struct inode *inode);
-
-/**
- * @brief Error in input parameters.
- */
-void param_error();
-
-/**
- * @brief Write an inode to the file system.
- * @param path The path of the inode.
- * @param inode Pointer to the inode structure to be written.
- * @return 0 if the inode is written successfully, -1 if the inode doesn't exist in the path.
- */
-int write_inode(const char *path, struct inode *inode);
-
-/**
- * @brief Read an inode from the file system.
- * @param path The path of the inode.
- * @param inode Pointer to the inode structure to be read.
- * @return 0 if the inode is read successfully, -1 if the inode doesn't exist in the path.
- */
-int read_inode(const char *path, struct inode *inode);
-
-/**
- * @brief Delete an inode from the file system.
- * @param path The path of the inode.
- * @param inode Pointer to the inode structure to be deleted.
- * @return 0 if the inode is deleted successfully, -1 if the inode doesn't exist in the path.
- */
-int delete_inode(const char *path, struct inode *inode);
-
-/**
- * @brief Move an inode within the file system.
- * @param path The path of the inode.
- * @param inode Pointer to the inode structure to be moved.
- * @param new_name The new name of the inode.
- * @param new_path The new path of the inode.
- * @return 0 if the inode is moved successfully, -1 if the new_path doesn't exist.
- */
-int move_inode(const char *path, struct inode *inode, const char *new_name, const char *new_path);
+struct super_operations {
+    int (*alloc_inode) (struct super_block *sb);
+    void (*write_inode) (struct inode *inode, int sync);
+    void (*read_inode) (struct inode *inode);    
+    void (*dirty_inode) (struct inode *inode);
+    void (*destroy_inode) (struct inode *inode);
+    void (*put_inode) (struct inode *inode);
+    void (*drop_inode) (struct inode *inode);
+    void (*delete_inode) (struct inode *inode);
+    void (*put_super) (struct super_block *sb);
+    void (*write_super) (struct super_block *sb);
+    int (*sync_fs) (struct super_block *sb, int wait);
+    int (*statfs) (struct dentry *dentry, struct kstatfs *buf);
+    int (*remount_fs) (struct super_block *sb, int *flags, char *data);
+    void (*clear_inode) (struct inode *inode);
+    void (*umount_begin) (struct super_block *sb);
+};
