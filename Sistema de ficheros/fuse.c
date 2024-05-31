@@ -1,5 +1,6 @@
-#define FUSE_USE_VERSION 31
+#include "fuse.h"
 
+#include <stdlib.h>
 #include <fuse.h>
 #include <stdio.h>
 #include <string.h>
@@ -44,5 +45,7 @@ static struct fuse_operations fs_oper = {
 
 int main(int argc, char *argv[])
 {
-    return fuse_main(argc, argv, &fs_oper, NULL);
+    struct super_block    *sb  = (struct super_block *)malloc(sizeof(struct super_block));
+
+    return fuse_main(argc, argv, &fs_oper, sb);
 }

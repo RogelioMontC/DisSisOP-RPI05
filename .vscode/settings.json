@@ -6,6 +6,7 @@
         "unistd.h": "c",
         "stat.h": "c",
         "inodefuse.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "stdlib.h": "c"
     }
 }

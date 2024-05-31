@@ -145,3 +145,5 @@ struct super_operations {
     void (*clear_inode) (struct inode *inode);
     void (*umount_begin) (struct super_block *sb);
 };
+
+void error_parametros();

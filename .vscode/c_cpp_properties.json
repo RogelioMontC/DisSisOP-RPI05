@@ -6,7 +6,8 @@
                 "${workspaceFolder}/**",
                 "/usr/include/libxml2/libxml",
                 "/usr/include/libxml2",
-                "/usr/include"
+                "/usr/include",
+                "${workspaceFolder}/Sistema de ficheros"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",
