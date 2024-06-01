@@ -22,6 +22,7 @@
  * @brief Represents an inode in the file system.
  */
 struct inode {
+    unsigned char name[NAME_SIZE];            /**< File name */
     long id;                                /**< Inode ID */
     mode_t mode;                            /**< File mode */
     nlink_t nlink;                          /**< Link count */
@@ -35,7 +36,7 @@ struct inode {
     const struct file_operations *i_fop;    /**< File operations */
     const struct address_space_operations *i_mapping;   /**< Address space operations */
     const struct address_space *i_data;                 /**< Address space */
-    uint32_t blocks[15];                     /**< Pointers to data blocks */
+//  uint32_t blocks[15];                     /**< Pointers to data blocks */
 };
 
 /**
@@ -56,12 +57,12 @@ struct dentry {
  * @brief Represents a file in the file system.
  */
 struct file {
-    struct path *f_path;                    /**< File path */
-    struct dentry (f_path->dentry);          /**< Dentry object */
+    struct path f_path;                     /**< File path  */
+    struct inode *f_inode;                  /**< File inode */
     unsigned int f_flags;                   /**< File flags */
-    mode_t f_mode;                          /**< File mode */
+    mode_t f_mode;                          /**< File mode  */
     struct file_operations *f_op;           /**< File operations */
-    off_t f_pos;                           /**< File position */
+    off_t f_pos;                            /**< File position   */
 };
 
 /**
@@ -85,17 +86,17 @@ struct super_block {
  * @brief Represents the operations that can be performed on an inode.
  */
 struct inode_operations {
-    int (*create) (struct inode *inode, struct dentry *dentry, int mode);
-    int (*lookup) (struct inode *inode, struct dentry *dentry);
-    int (*link) (struct dentry *old_dentry, struct inode *dir, struct dentry *dentry);
-    int (*unlink) (struct inode *dir, struct dentry *dentry);
-    int (*mkdir) (struct inode *dir, struct dentry *dentry, int mode);
-    int (*rmdir) (struct inode *dir, struct dentry *dentry);
-    int (*mknod) (struct inode *dir, struct dentry *dentry, int mode, dev_t dev);
-    int (*rename) (struct inode *old_dir, struct dentry *old_dentry, struct inode *new_dir, struct dentry *new_dentry);
+    int (*create)   (struct inode *inode, struct dentry *dentry, int mode);
+    int (*lookup)   (struct inode *inode, struct dentry *dentry);
+    int (*link)     (struct dentry *old_dentry, struct inode *dir, struct dentry *dentry);
+    int (*unlink)   (struct inode *dir, struct dentry *dentry);
+    int (*mkdir)    (struct inode *dir, struct dentry *dentry, int mode);
+    int (*rmdir)    (struct inode *dir, struct dentry *dentry);
+    int (*mknod)    (struct inode *dir, struct dentry *dentry, int mode, dev_t dev);
+    int (*rename)   (struct inode *old_dir, struct dentry *old_dentry, struct inode *new_dir, struct dentry *new_dentry);
     int (*permission) (struct inode *inode,int mask);
-    void(*setattr) (struct dentry *dentry, struct iattr *attr);
-    int (*getattr) (struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat);
+    void(*setattr)  (struct dentry *dentry, struct iattr *attr);
+    int (*getattr)  (struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat);
 };
 
 /**
@@ -104,12 +105,13 @@ struct inode_operations {
  */
 struct dentry_operations {
     int (*d_revalidate) (struct dentry *dentry, struct nameidata *nd);
-    int (*d_hash) (const struct dentry *dentry, const struct qstr *name);
-    int (*d_compare) (const struct dentry *dentry, const struct dentry *dentry2, unsigned int len, const char *str, const struct qstr *name);
-    int (*d_delete) (struct dentry *dentry);
-    int (*d_release) (struct dentry *dentry);
-    int (*d_iput) (struct dentry *dentry, struct inode *inode);
-    int (*d_dname) (const struct dentry *dentry, char *buffer, int buflen);
+    int (*d_hash)       (const struct dentry *dentry, const struct qstr *name);
+    int (*d_compare)    (const struct dentry *dentry, const struct dentry *dentry2, 
+                        unsigned int len, const char *str, const struct qstr *name);
+    int (*d_delete)     (struct dentry *dentry);
+    int (*d_release)    (struct dentry *dentry);
+    int (*d_iput)       (struct dentry *dentry, struct inode *inode);
+    int (*d_dname)      (const struct dentry *dentry, char *buffer, int buflen);
 };
 
 /**
@@ -119,31 +121,31 @@ struct dentry_operations {
 struct file_operations {
     struct module *owner;
     off_t (*llseek) (struct file *file, off_t offset, int whence);
-    int (*open) (struct inode *inode, struct file *file);
-    int (*release) (struct inode *inode, struct file *file);
-    int (*read) (struct file *file, char *buf, size_t count, off_t *offset);
-    int (*write) (struct file *file, const char *buf, size_t count, off_t *offset);
-    int (*flush) (struct file *file);
-    int (*fsync) (struct file *file, int datasync);
-    int (*readdir) (struct file *file, void *dirent, filldir_t filldir);
+    int (*open)     (struct inode *inode, struct file *file);
+    int (*release)  (struct inode *inode, struct file *file);
+    int (*read)     (struct file *file, char *buf, size_t count, off_t *offset);
+    int (*write)    (struct file *file, const char *buf, size_t count, off_t *offset);
+    int (*flush)    (struct file *file);
+    int (*fsync)    (struct file *file, int datasync);
+    int (*readdir)  (struct file *file, void *dirent, filldir_t filldir);
 };
 
 struct super_operations {
-    int (*alloc_inode) (struct super_block *sb);
+    int (*alloc_inode)  (struct super_block *sb);
     void (*write_inode) (struct inode *inode, int sync);
-    void (*read_inode) (struct inode *inode);    
+    void (*read_inode)  (struct inode *inode);    
     void (*dirty_inode) (struct inode *inode);
-    void (*destroy_inode) (struct inode *inode);
-    void (*put_inode) (struct inode *inode);
-    void (*drop_inode) (struct inode *inode);
-    void (*delete_inode) (struct inode *inode);
-    void (*put_super) (struct super_block *sb);
+    void (*destroy_inode)   (struct inode *inode);
+    void (*put_inode)   (struct inode *inode);
+    void (*drop_inode)  (struct inode *inode);
+    void (*delete_inode)    (struct inode *inode);
+    void (*put_super)   (struct super_block *sb);
     void (*write_super) (struct super_block *sb);
-    int (*sync_fs) (struct super_block *sb, int wait);
-    int (*statfs) (struct dentry *dentry, struct kstatfs *buf);
-    int (*remount_fs) (struct super_block *sb, int *flags, char *data);
+    int (*sync_fs)      (struct super_block *sb, int wait);
+    int (*statfs)       (struct dentry *dentry, struct kstatfs *buf);
+    int (*remount_fs)   (struct super_block *sb, int *flags, char *data);
     void (*clear_inode) (struct inode *inode);
-    void (*umount_begin) (struct super_block *sb);
+    void (*umount_begin)    (struct super_block *sb);
 };
 
 void error_parametros();
