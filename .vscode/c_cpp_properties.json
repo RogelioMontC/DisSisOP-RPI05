@@ -7,7 +7,8 @@
                 "/usr/include/libxml2/libxml",
                 "/usr/include/libxml2",
                 "/usr/include",
-                "${workspaceFolder}/Sistema de ficheros"
+                "${workspaceFolder}/Sistema de ficheros",
+                "/usr/include/fuse"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

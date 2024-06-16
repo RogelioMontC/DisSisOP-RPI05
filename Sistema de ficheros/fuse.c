@@ -47,5 +47,5 @@ int main(int argc, char *argv[])
 {
     struct super_block    *sb  = (struct super_block *)malloc(sizeof(struct super_block));
 
-    return fuse_main(argc, argv, &fs_oper, sb);
+    return fuse_main(argc, argv, &fs_oper, NULL);
 }

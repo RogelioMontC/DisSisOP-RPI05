@@ -9,6 +9,7 @@
         "stdio.h": "c",
         "stdlib.h": "c",
         "string.h": "c",
-        "fusestructures.h": "c"
+        "fusestructures.h": "c",
+        "fuse.h": "c"
     }
 }
