@@ -1,18 +1,18 @@
-EXEC=fuse
+EXEC=kkFUSE
 DIR=mount_point
 
 fuse_flags=`pkg-config fuse3 --cflags --libs`
 
 .PHONY: mount umount clean
 
-$(EXEC): fuse.o
+$(EXEC): kkFUSE.o
 	gcc -g -o $@  $^ ${fuse_flags}
 	mkdir -p $(DIR)
 	
-fuse.o: fuse.c
+kkFUSE.o: kkFUSE.c
 	gcc -g -c -o $@  $< ${fuse_flags}
 
-mount: fuse
+mount: kkFUSE
 	./$(EXEC) $(DIR)
 
 umount:
